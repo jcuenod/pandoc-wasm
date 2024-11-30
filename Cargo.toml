@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Pandoc.wasm wrapper for easy deployment and a familiar interface"
 authors = ["James Cuénod"]
 edition = "2021"
+repository = "https://github.com/jcuenod/pandoc-wasm-wrapper"
 
 [dependencies]
 wasmer = "5.0.2"
