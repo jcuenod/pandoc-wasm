@@ -1,0 +1,10 @@
+[package]
+name = "pandoc-wasm-wrapper"
+version = "0.1.0"
+description = "Pandoc.wasm wrapper for easy deployment and a familiar interface"
+authors = ["James Cuénod"]
+edition = "2021"
+
+[dependencies]
+wasmer = "5.0.2"
+wasmer-wasix = "0.32.0"
