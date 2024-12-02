@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use wasmer::{Module, Store};
 use wasmer_wasix::{Pipe, WasiEnv};
 
-static WASM_BYTES: &'static [u8] = include_bytes!("../pandoc.wasm");
+static WASM_BYTES: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pandoc.wasm"));
 
 /// Calls the pandoc wasm module with the given arguments and input bytes. The input is passed to pandoc via stdin, and the output is read from stdout (stdio is captured).
 /// 
