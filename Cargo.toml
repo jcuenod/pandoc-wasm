@@ -6,6 +6,7 @@ authors = ["James Cuénod"]
 edition = "2021"
 repository = "https://github.com/jcuenod/pandoc-wasm-wrapper"
 build = "build.rs"
+license = "GPL-3.0-only"
 
 [dependencies]
 wasmer = "5.0.2"
