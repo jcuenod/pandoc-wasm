@@ -1,44 +1,39 @@
-use std::io::{Read, Write};
 use once_cell::sync::{Lazy, OnceCell};
+use std::io::{Read, Write};
 use wasmer::{Engine, Module, Store};
 use wasmer_wasix::{Pipe, WasiEnv};
 
 static WASM_BYTES: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pandoc.wasm"));
 static MODULE_CACHE: OnceCell<Module> = OnceCell::new();
-static ENGINE: Lazy<Engine> = Lazy::new(|| {
-    Engine::default()
-});
+static ENGINE: Lazy<Engine> = Lazy::new(|| Engine::default());
 
 /// Calls the pandoc wasm module with the given arguments and input bytes. The input is passed to pandoc via stdin, and the output is read from stdout (stdio is captured).
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `args` - A vector of strings representing the arguments to pass to pandoc.
 /// * `input` - A vector of bytes representing the input to pass to pandoc.
-/// 
+///
 /// # Returns
-/// 
+///
 /// A string representing the output of pandoc.
-/// 
+///
 /// # Errors
-/// 
+///
 /// If there is an error reading or writing to the pipes, or if there is an error running the wasm module, an error is returned.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use pandoc_wasm_wrapper::pandoc;
-/// 
+///
 /// let args = vec!["--from=markdown".to_string(), "--to=html".to_string()];
 /// let input = "# Hello, world!".as_bytes().to_vec();
 /// let output = pandoc(&args, &input).unwrap();
-/// 
+///
 /// assert_eq!(output, "<h1 id=\"hello-world\">Hello, world!</h1>\n");
 /// ```
-pub fn pandoc(
-    args: &Vec<String>,
-    input: &Vec<u8>,
-) -> Result<String, Box<dyn std::error::Error>> {    
+pub fn pandoc(args: &Vec<String>, input: &Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     let mut store = Store::new(ENGINE.clone());
     let module = MODULE_CACHE.get_or_try_init(|| Module::new(&store, WASM_BYTES))?;
 
