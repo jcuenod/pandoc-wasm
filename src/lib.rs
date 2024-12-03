@@ -1,9 +1,13 @@
 use std::io::{Read, Write};
-
-use wasmer::{Module, Store};
+use once_cell::sync::{Lazy, OnceCell};
+use wasmer::{Engine, Module, Store};
 use wasmer_wasix::{Pipe, WasiEnv};
 
 static WASM_BYTES: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pandoc.wasm"));
+static MODULE_CACHE: OnceCell<Module> = OnceCell::new();
+static ENGINE: Lazy<Engine> = Lazy::new(|| {
+    Engine::default()
+});
 
 /// Calls the pandoc wasm module with the given arguments and input bytes. The input is passed to pandoc via stdin, and the output is read from stdout (stdio is captured).
 /// 
@@ -35,8 +39,8 @@ pub fn pandoc(
     args: &Vec<String>,
     input: &Vec<u8>,
 ) -> Result<String, Box<dyn std::error::Error>> {    
-    let mut store = Store::default();
-    let module = Module::new(&store, WASM_BYTES)?;
+    let mut store = Store::new(ENGINE.clone());
+    let module = MODULE_CACHE.get_or_try_init(|| Module::new(&store, WASM_BYTES))?;
 
     let (mut stdin_sender, stdin_reader) = Pipe::channel();
     let (stdout_sender, mut stdout_reader) = Pipe::channel();
@@ -48,7 +52,7 @@ pub fn pandoc(
         .args(args)
         .stdout(Box::new(stdout_sender))
         .stdin(Box::new(stdin_reader))
-        .run_with_store(module, &mut store)?;
+        .run_with_store(module.clone(), &mut store)?;
 
     let mut buf = String::new();
     stdout_reader.read_to_string(&mut buf).unwrap();
