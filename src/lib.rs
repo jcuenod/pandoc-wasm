@@ -1,5 +1,6 @@
 use once_cell::sync::{Lazy, OnceCell};
-use std::io::{Read, Write};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::Mutex;
 use wasmer::{Engine, Module, Store};
 use wasmer_wasix::{Pipe, WasiEnv};
 
@@ -16,7 +17,7 @@ static ENGINE: Lazy<Engine> = Lazy::new(|| Engine::default());
 ///
 /// # Returns
 ///
-/// A string representing the output of pandoc.
+/// A Future Result that contains either the string representing the output of pandoc or an std:error:Error.
 ///
 /// # Errors
 ///
@@ -29,18 +30,25 @@ static ENGINE: Lazy<Engine> = Lazy::new(|| Engine::default());
 ///
 /// let args = vec!["--from=markdown".to_string(), "--to=html".to_string()];
 /// let input = "# Hello, world!".as_bytes().to_vec();
-/// let output = pandoc(&args, &input).unwrap();
+/// let output = pandoc(&args, &input).await.unwrap();
 ///
 /// assert_eq!(output, "<h1 id=\"hello-world\">Hello, world!</h1>\n");
 /// ```
-pub fn pandoc(args: &Vec<String>, input: &Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+static PANDOC_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+pub async fn pandoc(
+    args: &Vec<String>,
+    input: &Vec<u8>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let _guard = PANDOC_LOCK.lock().await;
+
     let mut store = Store::new(ENGINE.clone());
     let module = MODULE_CACHE.get_or_try_init(|| Module::new(&store, WASM_BYTES))?;
 
     let (mut stdin_sender, stdin_reader) = Pipe::channel();
     let (stdout_sender, mut stdout_reader) = Pipe::channel();
 
-    stdin_sender.write_all(input)?;
+    stdin_sender.write_all(input).await?;
     drop(stdin_sender);
 
     WasiEnv::builder("pandoc")
@@ -50,7 +58,7 @@ pub fn pandoc(args: &Vec<String>, input: &Vec<u8>) -> Result<String, Box<dyn std
         .run_with_store(module.clone(), &mut store)?;
 
     let mut buf = String::new();
-    stdout_reader.read_to_string(&mut buf).unwrap();
+    stdout_reader.read_to_string(&mut buf).await.unwrap();
 
     Ok(buf)
 }
@@ -59,11 +67,11 @@ pub fn pandoc(args: &Vec<String>, input: &Vec<u8>) -> Result<String, Box<dyn std
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_pandoc() {
+    #[tokio::test]
+    async fn test_pandoc() {
         let args = vec!["--from=markdown".to_string(), "--to=html".to_string()];
         let input = "# Hello, world!".as_bytes().to_vec();
-        let output = pandoc(&args, &input).unwrap();
+        let output = pandoc(&args, &input).await.unwrap();
 
         assert_eq!(output, "<h1 id=\"hello-world\">Hello, world!</h1>\n");
     }
